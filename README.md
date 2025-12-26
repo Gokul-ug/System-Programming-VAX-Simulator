@@ -5,6 +5,11 @@ It helps students understand low-level concepts such as **assemblers, macro proc
 
 ---
 
+## 🖼️ Application Preview
+![Main page UI](/vax_ui.png)
+
+---
+
 ## Project Overview
 
 This simulator is designed for academic learning and lab demonstrations.  
