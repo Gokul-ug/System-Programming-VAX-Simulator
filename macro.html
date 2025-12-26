@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Macro Processor Simulator</title>
+<style>
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background:#1e1e2f;
+    color:#ecf0f1;
+    margin:0; padding:20px;
+}
+h1 {text-align:center; margin-bottom:20px;}
+h2 {color:#bdc3c7; margin:10px 0;}
+.container {max-width:1200px; margin:auto;}
+.input-section textarea, .input-section input {
+    width:100%; padding:10px; border-radius:6px; border:1px solid #555; background:#1f1f2f; color:#ecf0f1; font-family:monospace; margin-top:5px;
+}
+button {
+    padding:10px; border-radius:6px; border:none; background:#3498db; color:#fff; cursor:pointer; margin:5px 0;
+}
+button:hover { background:#2980b9; }
+.panels {display:flex; flex-wrap:wrap; gap:20px; margin-top:20px;}
+.panel {flex:1 1 300px; min-width:280px; background:#2c2c3f; border-radius:10px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.3); display:flex; flex-direction:column; max-height:400px; overflow:auto;}
+pre {margin:0; font-family:monospace; white-space:pre-wrap; word-wrap:break-word;}
+.highlight {background:#34495e;}
+.card {display:inline-block; padding:10px 20px; margin-top:10px; border-radius:10px; background:#3498db; color:#fff; text-decoration:none;}
+.card:hover {background:#2980b9;}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Macro Processor Simulator</h1>
+<p>Define macros, call them, and see the expanded assembly code step by step.</p>
+
+<div class="input-section">
+    <textarea id="macroInput" rows="8" placeholder="Enter macros and pseudo-code here..."></textarea>
+    <button onclick="runMacro()">Run</button>
+    <button onclick="stepMacro()">Step</button>
+    <button onclick="resetMacro()">Reset</button>
+</div>
+
+<div class="panels">
+    <div class="panel">
+        <h2>Macro Table</h2>
+        <pre id="macroTable"></pre>
+    </div>
+    <div class="panel">
+        <h2>Memory Map / Expanded Code</h2>
+        <pre id="expandedCode"></pre>
+    </div>
+    <div class="panel">
+        <h2>Logs</h2>
+        <pre id="logs"></pre>
+    </div>
+</div>
+
+<a href="index.html" class="card">← Back to Menu</a>
+</div>
+
+<script>
+let macroTable = {};
+let memoryMacro = {};
+let expandedCode = [];
+let currentStep = 0;
+
+function logMessage(msg){
+    const logs = document.getElementById("logs");
+    logs.textContent += msg + "\n";
+    logs.scrollTop = logs.scrollHeight;
+}
+
+function clearPanel(id){ document.getElementById(id).textContent = ""; }
+
+function runMacro(){
+    const code = document.getElementById("macroInput").value.split("\n");
+    macroTable = {};
+    memoryMacro = {};
+    expandedCode = [];
+    currentStep = 0;
+    clearPanel("macroTable");
+    clearPanel("expandedCode");
+    clearPanel("logs");
+
+    let address = 1000;
+    let inMacro = false;
+    let macroName = "";
+
+    for(let line of code){
+        line = line.trim();
+        if(line==="") continue;
+
+        if(line.startsWith("MACRO")){
+            inMacro = true;
+            macroName = line.split(" ")[1];
+            macroTable[macroName] = [];
+            logMessage(`Defining macro: ${macroName}`);
+            continue;
+        }
+        if(line==="MEND"){
+            inMacro = false;
+            macroName = "";
+            continue;
+        }
+        if(inMacro){
+            macroTable[macroName].push(line);
+            continue;
+        }
+
+        const parts = line.split(" ");
+        if(macroTable[parts[0]]){
+            logMessage(`Expanding macro: ${parts[0]}`);
+            for(let mLine of macroTable[parts[0]]){
+                memoryMacro[address] = mLine;
+                expandedCode.push({addr:address, line:mLine});
+                address++;
+            }
+        } else {
+            memoryMacro[address] = line;
+            expandedCode.push({addr:address, line:line});
+            address++;
+        }
+    }
+
+    // Display Macro Table
+    let macroHTML = "";
+    for(let m in macroTable){
+        macroHTML += `${m} : ${macroTable[m].join(", ")}\n`;
+    }
+    document.getElementById("macroTable").textContent = macroHTML;
+
+    // Display Expanded Code
+    let expHTML = expandedCode.map(e=>`${e.addr} : ${e.line}`).join("\n");
+    document.getElementById("expandedCode").textContent = expHTML;
+
+    logMessage("Macro expansion completed.");
+}
+
+function stepMacro(){
+    if(currentStep>=expandedCode.length){
+        logMessage("Execution finished.");
+        return;
+    }
+    const pre = document.getElementById("expandedCode");
+    pre.innerHTML = expandedCode.map((e,i)=>{
+        return i===currentStep ? `<span class="highlight">${e.addr} : ${e.line}</span>` : `${e.addr} : ${e.line}`;
+    }).join("\n");
+    logMessage(`Executing: ${expandedCode[currentStep].line} at ${expandedCode[currentStep].addr}`);
+    currentStep++;
+}
+
+function resetMacro(){
+    document.getElementById("macroInput").value="";
+    clearPanel("macroTable");
+    clearPanel("expandedCode");
+    clearPanel("logs");
+    macroTable = {};
+    memoryMacro = {};
+    expandedCode = [];
+    currentStep = 0;
+}
+</script>
+
+</body>
+</html>

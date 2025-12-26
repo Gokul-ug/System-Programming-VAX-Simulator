@@ -1,0 +1,119 @@
+/* ===== Base Dark Styles ===== */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    color: #ecf0f1;
+    background: #1e1e2f;
+}
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* ===== Headings ===== */
+h1 {
+    font-size: 2.5em;
+    color: #ecf0f1;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+h2 {
+    font-size: 1.3em;
+    margin-bottom: 10px;
+    color: #bdc3c7;
+}
+
+/* ===== Panels / Layout ===== */
+.panels {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.panel {
+    flex: 1 1 300px;
+    min-width: 280px;
+    background: #2c2c3f;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* ===== Textarea ===== */
+textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #555;
+    font-family: monospace;
+    font-size: 1em;
+    background: #1f1f2f;
+    color: #ecf0f1;
+    resize: vertical;
+}
+
+textarea::placeholder {
+    color: #7f8c8d;
+    font-style: italic;
+}
+
+/* ===== Buttons ===== */
+button {
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    background: #3498db;
+    color: #fff;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: auto;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: #2980b9;
+}
+
+/* ===== Accent Colors Per Module ===== */
+.assembler .panel { border-left: 4px solid #e67e22; }
+.macro .panel { border-left: 4px solid #8e44ad; }
+.loader .panel { border-left: 4px solid #27ae60; }
+
+/* ===== Responsive Grid ===== */
+@media (max-width: 900px) {
+    .panels {
+        flex-direction: column;
+    }
+}
+
+/* ===== Cards for Index Page ===== */
+.card {
+    display: inline-block;
+    width: 250px;
+    height: 100px;
+    margin: 20px;
+    border-radius: 15px;
+    background: #2c2c3f;
+    color: #ecf0f1;
+    font-size: 1.3em;
+    font-weight: bold;
+    line-height: 100px;
+    text-decoration: none;
+    text-align: center;
+    transition: 0.3s;
+}
+
+.card:hover {
+    background: #34495e;
+}

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VAX Simulator - Detailed Glow</title>
+<style>
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 20px;
+    color: #ecf0f1;
+    background: #1e1e2f;
+}
+h1 { text-align: center; margin-bottom: 20px; }
+
+.block-diagram { display:flex; flex-wrap:wrap; justify-content:center; margin-bottom:20px; }
+.block { width:140px; height:60px; margin:10px; border-radius:10px; border:2px solid #3498db; display:flex; align-items:center; justify-content:center; background:#2c2c3f; color:#3498db; font-weight:bold; text-align:center; transition:0.3s; }
+.glow { box-shadow:0 0 25px 8px #3498db; background:#3498db22; }
+
+.panels { display:flex; gap:20px; flex-wrap:wrap; }
+.panel { flex:1 1 300px; min-width:280px; background:#2c2c3f; border-radius:10px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.3); display:flex; flex-direction:column; }
+textarea { width:100%; min-height:120px; padding:12px; border-radius:8px; border:1px solid #555; font-family:monospace; font-size:1em; background:#1f1f2f; color:#ecf0f1; resize:vertical; box-sizing:border-box; margin-bottom:10px; }
+textarea::placeholder { color: #7f8c8d; font-style:italic; }
+button { padding:10px 20px; border-radius:6px; border:none; background:#3498db; color:#fff; font-weight:500; cursor:pointer; margin-top:5px; transition:0.3s; }
+button:hover { background:#2980b9; }
+
+#memoryCells, #log { max-height:250px; overflow-y:auto; font-family:monospace; background:#1f1f2f; padding:10px; margin-top:10px; border-radius:10px; border:1px solid #555; flex:1; }
+
+#registers div { margin:5px 0; }
+#registers span { font-weight:bold; color:#3498db; transition:0.3s; }
+.line-highlight { background:#3498db33; border-radius:3px; }
+</style>
+</head>
+<body>
+
+<h1>VAX Simulator - Detailed Glow</h1>
+
+<div class="block-diagram">
+    <div class="block" id="block-fetch">Fetch</div>
+    <div class="block" id="block-registers">Registers</div>
+    <div class="block" id="block-alu">ALU</div>
+    <div class="block" id="block-memory">Memory</div>
+    <div class="block" id="block-pc">PC</div>
+</div>
+
+<div class="panels">
+    <div class="panel">
+        <h2>Program</h2>
+        <textarea id="programInput" placeholder="Enter VAX assembly code, e.g.:
+MOV R0,5
+MOV R1,10
+ADD R1
+MOV R2,R0
+MOV 0,R2
+HLT"></textarea>
+        <button onclick="loadProgram()">Load Program</button>
+        <button onclick="stepInstruction()">Step</button>
+        <button onclick="runProgram()">Run</button>
+        <button onclick="resetSimulator()">Reset</button>
+        <h2>Execution Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <div class="panel" id="registers">
+        <h2>Registers</h2>
+        <div>R0: <span id="regR0">0</span></div>
+        <div>R1: <span id="regR1">0</span></div>
+        <div>R2: <span id="regR2">0</span></div>
+        <div>R3: <span id="regR3">0</span></div>
+        <div>R4: <span id="regR4">0</span></div>
+        <div>R5: <span id="regR5">0</span></div>
+        <div>R6: <span id="regR6">0</span></div>
+        <div>R7: <span id="regR7">0</span></div>
+        <div>R8: <span id="regR8">0</span></div>
+        <div>R9: <span id="regR9">0</span></div>
+        <div>R10: <span id="regR10">0</span></div>
+        <div>R11: <span id="regR11">0</span></div>
+        <div>SP: <span id="regSP">0</span></div>
+        <div>FP: <span id="regFP">0</span></div>
+        <div>AP: <span id="regAP">0</span></div>
+        <div>PC: <span id="regPC">0</span></div>
+    </div>
+
+    <div class="panel">
+        <h2>Memory</h2>
+        <div id="memoryCells"></div>
+    </div>
+</div>
+
+<script>
+let registers = {R0:0,R1:0,R2:0,R3:0,R4:0,R5:0,R6:0,R7:0,R8:0,R9:0,R10:0,R11:0,SP:0,FP:0,AP:0,PC:0};
+let memory = new Array(256).fill(0);
+let program = [];
+
+// UI functions
+function updateRegisters(){ for(let r in registers){ let el = document.getElementById('reg'+r); el.innerText = registers[r]; el.classList.remove('glow'); } }
+function updateMemory(){ let memDiv = document.getElementById('memoryCells'); memDiv.innerHTML=""; memory.forEach((v,i)=>{ memDiv.innerHTML += `M[${i}] = <span id="mem${i}">${v}</span><br>`; }); }
+function log(msg){ let l=document.getElementById('log'); l.innerHTML += msg + "<br>"; l.scrollTop = l.scrollHeight; }
+function glowBlock(id){ const b=document.getElementById(id); b.classList.add('glow'); setTimeout(()=>b.classList.remove('glow'),400); }
+function glowRegister(r){ let el=document.getElementById('reg'+r); el.classList.add('glow'); setTimeout(()=>el.classList.remove('glow'),400); }
+function glowMemory(addr){ let el=document.getElementById('mem'+addr); if(el){ el.classList.add('glow'); setTimeout(()=>el.classList.remove('glow'),400); } }
+function highlightLine(line){ let ta=document.getElementById('programInput'); let lines=ta.value.split('\n'); ta.value=lines.map((l,i)=> i===line? '▶ '+l : l).join('\n'); }
+
+// Instructions
+function executeMOV(dest, src){
+    glowBlock('block-registers'); glowBlock('block-memory');
+    if(registers[dest]!==undefined && registers[src]!==undefined){ registers[dest]=registers[src]; glowRegister(dest); glowRegister(src); }
+    else if(registers[dest]!==undefined && !isNaN(src)){ registers[dest]=parseInt(src); glowRegister(dest); }
+    else if(!isNaN(dest) && registers[src]!==undefined){ memory[parseInt(dest)] = registers[src]; glowRegister(src); glowMemory(parseInt(dest)); }
+    else if(!isNaN(dest) && !isNaN(src)){ memory[parseInt(dest)] = parseInt(src); glowMemory(parseInt(dest)); }
+}
+
+function executeADD(arg){ glowBlock('block-alu'); glowBlock('block-registers'); if(registers[arg]!==undefined){ registers.R0 += registers[arg]; glowRegister('R0'); glowRegister(arg); } else { registers.R0 += parseInt(arg); glowRegister('R0'); } }
+function executeSUB(arg){ glowBlock('block-alu'); glowBlock('block-registers'); if(registers[arg]!==undefined){ registers.R0 -= registers[arg]; glowRegister('R0'); glowRegister(arg); } else { registers.R0 -= parseInt(arg); glowRegister('R0'); } }
+function executeHLT(){ log("Program halted."); registers.PC=program.length; glowBlock('block-pc'); }
+
+// Program control
+function loadProgram(){ program=document.getElementById('programInput').value.split('\n').map(l=>l.split(';')[0].trim()).filter(l=>l!==""); registers.PC=0; log("Program loaded!"); updateRegisters(); updateMemory(); }
+async function stepInstruction(){
+    if(registers.PC>=program.length){ log("End of program."); return; }
+    glowBlock('block-fetch'); highlightLine(registers.PC); await new Promise(r=>setTimeout(r,300));
+    let instr=program[registers.PC]; log(`Executing: ${instr}`);
+    let parts=instr.split(' '); let opcode=parts[0].toUpperCase(); let arg=parts.slice(1).join('').trim();
+    switch(opcode){
+        case 'MOV': let [d,s]=arg.split(',').map(x=>x.trim()); executeMOV(d,s); break;
+        case 'ADD': executeADD(arg); break;
+        case 'SUB': executeSUB(arg); break;
+        case 'HLT': executeHLT(); return;
+        default: log("Unknown instruction: "+opcode);
+    }
+    registers.PC++; updateRegisters(); updateMemory();
+}
+async function runProgram(){ while(registers.PC<program.length){ await stepInstruction(); await new Promise(r=>setTimeout(r,400)); } }
+function resetSimulator(){ registers={R0:0,R1:0,R2:0,R3:0,R4:0,R5:0,R6:0,R7:0,R8:0,R9:0,R10:0,R11:0,SP:0,FP:0,AP:0,PC:0}; memory.fill(0); program=[]; document.getElementById('programInput').value=""; document.getElementById('log').innerHTML=""; updateRegisters(); updateMemory(); log("Simulator reset."); }
+
+updateRegisters(); updateMemory();
+</script>
+</body>
+</html>

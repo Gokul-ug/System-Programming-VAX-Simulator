@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" class="assembler">
+<head>
+    <meta charset="UTF-8">
+    <title>Assembler Simulator</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Assembler Simulator</h1>
+        <p>Enter pseudo-code and simulate assembly generation, symbol table, and memory map.</p>
+
+        <div class="input-section">
+            <textarea id="codeInput" rows="8" placeholder="Enter pseudo-code here..."></textarea><br>
+            <button onclick="runAssembler()">Run</button>
+            <button onclick="stepAssembler()">Step</button>
+            <button onclick="resetAssembler()">Reset</button>
+        </div>
+
+        <div class="panels">
+            <div class="panel">
+                <h2>Symbol Table</h2>
+                <pre id="symbolTable"></pre>
+            </div>
+            <div class="panel">
+                <h2>Memory Map</h2>
+                <pre id="memoryMap"></pre>
+            </div>
+            <div class="panel">
+                <h2>Assembly Code</h2>
+                <pre id="assemblyCode"></pre>
+            </div>
+            <div class="panel">
+                <h2>Logs</h2>
+                <pre id="logs"></pre>
+            </div>
+        </div>
+
+        <a href="index.html" class="card">← Back to Menu</a>
+    </div>
+
+    <script src="js/common.js"></script>
+    <script src="js/assembler.js"></script>
+</body>
+</html>
