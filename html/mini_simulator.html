@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mini Loader & Compiler Simulator</title>
+<style>
+/* ===== Base Dark Theme ===== */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #1e1e2f;
+    color: #ecf0f1;
+    margin: 0;
+    padding: 20px;
+}
+h1 {
+    text-align: center;
+    color: #0ff;
+    margin-bottom: 20px;
+}
+
+/* ===== Textarea and Buttons ===== */
+textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: 12px;
+    font-family: monospace;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #555;
+    background: #2a2a3f;
+    color: #ecf0f1;
+    resize: vertical;
+}
+.top-section div button {
+    padding: 8px 16px;
+    margin: 5px 0;
+    border-radius: 6px;
+    border: none;
+    background: #3498db;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+    width: fit-content;
+}
+.top-section div button:hover {
+    background: #2980b9;
+    box-shadow: 0 0 10px #0ff;
+}
+
+/* ===== Container & Layout ===== */
+.container {
+    max-width: 1400px;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.top-section {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.top-section > div {
+    flex: 1;
+    min-width: 250px;
+}
+.panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+/* ===== Panels ===== */
+.panel {
+    background: #2c2c3f;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+h2 { color: #0ff; margin-bottom: 10px; }
+pre {
+    background: #1f1f2f;
+    padding: 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    min-height: 200px;
+}
+
+/* Highlight executed line */
+.executed { background: #34495e; }
+
+/* Responsive adjustments */
+@media (max-width: 1100px) {
+    .top-section { flex-direction: column; }
+    .panels { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Mini Loader & Compiler Simulator</h1>
+
+    <!-- Input + Buttons -->
+    <div class="top-section">
+        <div>
+            <textarea id="inputCode" placeholder="Type your code here, e.g.:
+a = 10
+b = 5
+c = a + b * 2
+d = (c - b) / 3
+print c
+print d"></textarea>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; justify-content:flex-start;">
+            <button onclick="runSimulator()">Run Simulator</button>
+            <button onclick="stepSimulator()">Step Execution</button>
+            <button onclick="resetSimulator()">Reset</button>
+        </div>
+    </div>
+
+    <!-- Panels -->
+    <div class="panels">
+        <div class="panel">
+            <h2>Symbol Table</h2>
+            <pre id="symbolTable">{}</pre>
+        </div>
+        <div class="panel">
+            <h2>Memory Map</h2>
+            <pre id="memoryMap">{}</pre>
+        </div>
+        <div class="panel">
+            <h2>Pseudo Assembly</h2>
+            <pre id="assemblyCode">{}</pre>
+        </div>
+        <div class="panel">
+            <h2>Execution Logs</h2>
+            <pre id="logs"></pre>
+        </div>
+    </div>
+</div>
+
+<script>
+let symbols = {};
+let memory = {};
+let assembly = [];
+let currentStep = 0;
+let addrStart = 1000;
+
+// Convert expression to pseudo assembly
+function exprToAssembly(varName, expr) {
+    expr = expr.replace(/\s+/g,''); // remove spaces
+    const tokens = expr.match(/\d+|[a-zA-Z_]\w*|\+|\-|\*|\/|\(|\)/g);
+    if (!tokens) return [];
+
+    const precedence = {'+':1,'-':1,'*':2,'/':2};
+    let output = [], stack = [];
+    tokens.forEach(token => {
+        if(/\d+|[a-zA-Z_]\w*/.test(token)) output.push(token);
+        else if(token === '(') stack.push(token);
+        else if(token === ')'){
+            while(stack.length && stack[stack.length-1] !== '(') output.push(stack.pop());
+            stack.pop();
+        }
+        else {
+            while(stack.length && precedence[stack[stack.length-1]] >= precedence[token])
+                output.push(stack.pop());
+            stack.push(token);
+        }
+    });
+    while(stack.length) output.push(stack.pop());
+
+    let asm = [];
+    let tempStack = [];
+    const tempReg = 'R0';
+
+    output.forEach(token => {
+        if(/\d+|[a-zA-Z_]\w*/.test(token)) tempStack.push(token);
+        else {
+            let b = tempStack.pop();
+            let a = tempStack.pop();
+            asm.push(`MOV ${tempReg}, ${a}`);
+            if(token === '+') asm.push(`ADD ${tempReg}, ${b}`);
+            else if(token === '-') asm.push(`SUB ${tempReg}, ${b}`);
+            else if(token === '*') asm.push(`MUL ${tempReg}, ${b}`);
+            else if(token === '/') asm.push(`DIV ${tempReg}, ${b}`);
+            tempStack.push(tempReg);
+        }
+    });
+
+    asm.push(`MOV ${varName}, ${tempReg}`);
+    return asm;
+}
+
+// Run simulator and generate assembly
+function runSimulator() {
+    resetSimulator(false);
+    const code = document.getElementById('inputCode').value.split('\n');
+    let addr = addrStart;
+
+    for (let line of code) {
+        line = line.trim();
+        if (!line) continue;
+
+        if(line.includes("=")) {
+            let [varName, expr] = line.split("=");
+            varName = varName.trim();
+            expr = expr.trim();
+
+            // generate assembly
+            let asmLines = exprToAssembly(varName, expr);
+            asmLines.forEach(instr => assembly.push({instr, addr}));
+            let value = eval(expr.replace(/\b[a-zA-Z_]\w*\b/g, v => symbols[v] !== undefined ? symbols[v] : 0));
+            symbols[varName] = value;
+            memory[addr] = value;
+            addr += 4;
+
+        } else if(line.startsWith("print")) {
+            let varName = line.split(" ")[1].trim();
+            assembly.push({instr: `OUT ${varName}`, addr: null});
+        }
+    }
+
+    updateUI();
+    logMessage("logs", "Program loaded and pseudo assembly generated.");
+}
+
+// Step execution
+function stepSimulator() {
+    if(currentStep >= assembly.length){
+        logMessage("logs","Execution completed.");
+        return;
+    }
+
+    const codePre = document.getElementById("assemblyCode");
+    codePre.innerHTML = assembly.map(a => a.instr).join('\n');
+    let instrObj = assembly[currentStep];
+    let instrLine = instrObj.instr;
+
+    let lines = codePre.innerHTML.split('\n');
+    lines[currentStep] = `<span class="executed">${lines[currentStep]}</span>`;
+    codePre.innerHTML = lines.join('\n');
+
+    if(instrLine.startsWith("MOV") || instrLine.startsWith("ADD") || instrLine.startsWith("SUB") ||
+       instrLine.startsWith("MUL") || instrLine.startsWith("DIV")) {
+        logMessage("logs", `Executing: ${instrLine}`);
+    } else if(instrLine.startsWith("OUT")) {
+        let varName = instrLine.split(" ")[1];
+        let value = symbols[varName];
+        logMessage("logs", `Output: ${varName} = ${value}`);
+    }
+
+    currentStep++;
+    updateUI();
+}
+
+// Reset simulator
+function resetSimulator(full=true){
+    symbols={};
+    memory={};
+    assembly=[];
+    currentStep=0;
+    if(full) document.getElementById('inputCode').value="";
+    document.getElementById('symbolTable').textContent="{}";
+    document.getElementById('memoryMap').textContent="{}";
+    document.getElementById('assemblyCode').textContent="{}";
+    document.getElementById('logs').textContent="";
+}
+
+// Update UI panels
+function updateUI(){
+    document.getElementById('symbolTable').textContent=JSON.stringify(symbols,null,2);
+    document.getElementById('memoryMap').textContent=Object.entries(memory).map(([k,v])=>`${k} : ${v}`).join('\n');
+    document.getElementById('assemblyCode').textContent=assembly.map(a=>a.instr).join('\n');
+}
+
+// Log message
+function logMessage(panelId,message){
+    const panel=document.getElementById(panelId);
+    panel.textContent+=message+'\n';
+    panel.scrollTop = panel.scrollHeight;
+}
+</script>
+</body>
+</html>
