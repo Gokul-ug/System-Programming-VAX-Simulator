@@ -83,4 +83,3 @@ This project is suitable for:
 - Mini projects
 - Understanding assemblers, loaders, and compilers
 - Demonstrating CPU instruction execution
-
